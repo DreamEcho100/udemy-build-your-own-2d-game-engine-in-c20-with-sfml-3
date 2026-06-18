@@ -1,0 +1,104 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: Configure active Debug",
+      "type": "cmake",
+      "command": "configure",
+      "preset": "debug",
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: Build active Debug",
+      "type": "cmake",
+      "command": "build",
+      "preset": "debug",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake: Prepare active Debug",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake: Configure active Debug",
+        "CMake: Build active Debug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: Configure active Release",
+      "type": "cmake",
+      "command": "configure",
+      "preset": "release",
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: Build active Release",
+      "type": "cmake",
+      "command": "build",
+      "preset": "release",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "Workspace: Sync projects",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/tools/workspace.py",
+        "sync"
+      ],
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "${workspaceFolder}/tools/workspace.py",
+          "sync"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Workspace: Create SFML project",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/tools/workspace.py",
+        "new"
+      ],
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "${workspaceFolder}/tools/workspace.py",
+          "new"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Workspace: Clean generated files",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/tools/workspace.py",
+        "clean"
+      ],
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "${workspaceFolder}/tools/workspace.py",
+          "clean"
+        ]
+      },
+      "problemMatcher": []
+    }
+  ]
+}

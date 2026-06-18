@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CMake: Debug active target (GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${input:cmakeTargetPath}",
+      "cwd": "${input:cmakeProjectDirectory}",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "preLaunchTask": "CMake: Prepare active Debug"
+    },
+    {
+      "name": "CMake: Debug active target (CodeLLDB)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${input:cmakeTargetPath}",
+      "cwd": "${input:cmakeProjectDirectory}",
+      "args": [],
+      "stopOnEntry": false,
+      "terminal": "integrated",
+      "preLaunchTask": "CMake: Prepare active Debug"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "cmakeTargetPath",
+      "type": "command",
+      "command": "cmake.launchTargetPath"
+    },
+    {
+      "id": "cmakeProjectDirectory",
+      "type": "command",
+      "command": "cmake.activeFolderPath"
+    }
+  ]
+}
