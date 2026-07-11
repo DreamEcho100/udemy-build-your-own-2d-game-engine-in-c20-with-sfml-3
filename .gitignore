@@ -1,6 +1,10 @@
 **/build/
 **/compile_commands.json
 **/.cache/
+
+nvim.log
+
 **/__pycache__/
 *.py[cod]
-nvim.log
+
+_ignore

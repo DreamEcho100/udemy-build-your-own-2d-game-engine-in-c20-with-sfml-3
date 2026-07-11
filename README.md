@@ -282,6 +282,19 @@ python3 tools/workspace.py new 1-window \
   --target WindowExample
 ```
 
+For a project that loads textures, fonts, sounds, or other runtime files, add
+the optional assets directory and CMake copy step during generation:
+
+```bash
+python3 tools/workspace.py new 5-textures \
+  --name Textures \
+  --target Textures \
+  --with-assets-dir
+```
+
+This creates `assets/.gitkeep` and configures every successful target link to
+copy `assets/` into the executable directory.
+
 If you manually add or remove a project, synchronize VS Code:
 
 ```bash
@@ -412,8 +425,9 @@ the working directory. Running the executable after `cd projects/<project>`
 uses the same directory. Relative paths such as `assets/player.png` therefore
 resolve to the project's `assets/` directory in all three workflows.
 
-When packaging the game, or if you deliberately run it from
-`build/debug/bin`, copy assets beside the executable:
+`:CMakeRun` and direct binary execution use `build/debug/bin` as the working
+directory. Generate asset-using projects with `--with-assets-dir`, or add the
+equivalent post-build copy command manually:
 
 ```cmake
 add_custom_command(
@@ -427,8 +441,9 @@ add_custom_command(
 )
 ```
 
-The post-build copy is optional during normal workspace development because the
-shared debugger configurations already use the project directory.
+The shared debugger configuration uses the project directory, while CMakeTools
+uses the executable directory. Keeping the source `assets/` directory and its
+post-build copy supports both workflows.
 
 ### Renaming a project directory
 
@@ -511,161 +526,129 @@ server in VS Code or run `:LspRestart` in Neovim.
 
 ## How debugging is organized
 
-There are three separate concepts:
+Each independent project owns two portable editor files:
 
-- **Project:** A directory such as `projects/0-starter`.
-- **CMake target:** An executable such as `HelloSFML`.
-- **Debugger configuration:** How that executable is launched: debugger,
-  arguments, environment variables, and working directory.
+- `.vscode/tasks.json` defines configure, build, and prepare-Debug tasks.
+- `.vscode/launch.json` defines build-and-debug and debug-existing launches.
 
-You normally do not add a debugger configuration for every new project. The
-shared configurations in `.vscode/launch.json` ask CMake for the active
-executable path, so they work with all projects and all executable targets.
-
-Use a Debug build when setting breakpoints:
-
-```bash
-cmake --preset debug
-cmake --build --preset debug --parallel
-```
+VS Code reads these files directly. Neovim reads the same files through
+nvim-dap and Overseer. There are no project-local `.nvim` files.
 
 The Debug preset includes source-level debug information. Release builds are
-optimized, so lines may be reordered or variables may be unavailable.
+optimized, so lines may be reordered and variables may be unavailable.
+
+### Build, run, and debug actions
+
+| Action | Neovim | Result |
+| --- | --- | --- |
+| Build only | `<leader>mcmb` | Runs the active CMakeTools build; no program or debugger starts. |
+| Build and debug | `<F5>` → `CMake: Build and Debug` | Runs the generated prepare task, then launches CodeLLDB. |
+| Native CMake debug | `:CMakeDebug` | Builds and debugs the selected CMakeTools launch target. |
+| Debug existing | `<F5>` → `CMake: Debug Existing` | Launches the existing Debug binary without building. |
+| Run normally | `<leader>mcmr` | Runs through CMakeTools without DAP. |
+
+The portable launch files use VS Code's `type = "lldb"`. Global Neovim
+configuration aliases that type to its Mason-installed `codelldb` adapter.
+nvim-dap natively expands `${workspaceFolder}` and reads `.vscode/launch.json`
+from Neovim's current working directory.
+
+Before using F5 or native CMakeTools commands, run `:cd projects/<project>`
+or start Neovim from that project directory. Then select/configure its CMake
+target as usual.
+
+### Breakpoints, exceptions, and crashes
+
+Useful nvim-dap mappings are:
+
+- `<leader>daptb`: toggle a normal source-line breakpoint.
+- `<leader>dapb`: create a conditional breakpoint.
+- `<F5>`: start, continue, or resume execution.
+- `<F1>`, `<F2>`, `<F3>`: step into, over, and out.
+- `<F7>`: toggle the debugger UI.
+- `<leader>dapr`: open the debugger REPL.
+
+CodeLLDB advertises C++ break-on-throw as a default exception filter. To
+disable exception breakpoints for the current session, run:
+
+```vim
+:lua require("dap").set_exception_breakpoints({})
+```
+
+CodeLLDB is configured not to create synthetic disassembly buffers. When an
+exception physically stops in `__cxa_throw`, `std::terminate`, or a signal
+handler, nvim-dap therefore opens the first stack frame that has source code.
+Runtime frames remain listed in the DAP stack panel, but source-less assembly
+does not replace your source buffer.
+
+An SFML window can be reported as unresponsive while the debugger is paused at
+a breakpoint or exception. That is expected: its event loop is stopped. Return
+to Neovim, inspect the stack and variables, then press `<F5>` to resume.
 
 ### Custom debugger arguments or environment
 
-For a target that needs command-line arguments or environment variables,
-duplicate the CodeLLDB entry in `.vscode/launch.json` and keep the CMake target
-inputs:
+Edit that project's `.vscode/launch.json`. Keep the generated program and
+working-directory values, then add `args` or `env`:
 
 ```json
 {
-  "name": "1-window: CodeLLDB with diagnostics",
+  "name": "CMake: Build and Debug with diagnostics",
   "type": "lldb",
   "request": "launch",
-  "program": "${input:cmakeTargetPath}",
-  "cwd": "${input:cmakeProjectDirectory}",
+  "program": "${workspaceFolder}/build/debug/bin/WindowExample",
+  "cwd": "${workspaceFolder}",
   "args": ["--show-fps"],
   "env": {
     "GAME_LOG_LEVEL": "debug"
   },
-  "preLaunchTask": "CMake: Prepare active Debug"
+  "preLaunchTask": "CMake: Prepare Debug"
 }
 ```
 
-The Neovim bridge reads `lldb` entries from the same file, changes the adapter
-to its installed `codelldb`, resolves the nearest CMake target, and preserves
-fields such as `args` and `env`. Name custom configurations with the intended
-project so they are easy to select.
-
 ## VS Code
 
-Always open the repository root rather than an individual project:
+You can open the repository root with `code .` or open one independent project.
+The root workspace keeps the multi-project CMake Tools list; each project also
+contains its own portable build and debug configurations.
 
-```bash
-code .
-```
+Install clangd, CMake Tools, and CodeLLDB. In an individual project, use:
 
-Install the recommended extensions when VS Code prompts:
+- **Tasks: Run Build Task** for the generated Debug build.
+- **Run and Debug → CMake: Build and Debug** to build before debugging.
+- **Run and Debug → CMake: Debug Existing** to skip the build.
 
-- clangd
-- CMake Tools
-- Microsoft C/C++ Debugger
-- CodeLLDB
-
-### Add or discover a project
-
-When a project is generated, `workspace.py new` updates
-`.vscode/settings.json`. For a manually copied or renamed project:
+When a project is generated, `workspace.py new` creates its editor metadata and
+updates `.vscode/settings.json`. For manually copied or renamed projects, run:
 
 ```bash
 python3 tools/workspace.py sync
 ```
 
-If VS Code was already open, reload the window if the CMake project list does
-not update.
-
-### Configure and build
-
-Use the CMake Tools status bar or Command Palette:
-
-1. Run **CMake: Select Active Folder** and choose the project.
-2. Run **CMake: Select Configure Preset** and choose `debug`.
-3. Run **CMake: Configure**.
-4. Run **CMake: Set Build Target** if the project has multiple targets.
-5. Build with `Ctrl+Shift+B` or **CMake: Build**.
-
-The root tasks provide:
-
-- Debug and Release configuration
-- Debug and Release builds
-- creating projects
-- synchronizing project discovery
-- cleaning generated files
-
-Run them through **Tasks: Run Task**.
-
-### Debug
-
-Before debugging:
-
-1. Select the active CMake project.
-2. Configure it with the `debug` preset.
-3. Run **CMake: Set Debug Target** and choose the executable.
-4. Add a breakpoint in project source code.
-
-The Run and Debug panel provides:
-
-- `CMake: Debug active target (GDB)`
-- `CMake: Debug active target (CodeLLDB)`
-
-Both configurations prepare a Debug build before launching the active CMake
-target.
-
-If VS Code launches the wrong executable, the selected CMake folder or debug
-target is stale. Select both again; do not hardcode an executable path into the
-shared debugger configurations.
+The sync command creates missing project editor files but does not overwrite
+existing customized `tasks.json` or `launch.json` files.
 
 ## Neovim 0.12
 
-Open Neovim at the repository root:
+Start Neovim from the independent project you want to debug:
 
 ```bash
+cd projects/4-shapes
 nvim .
 ```
 
-The existing nvim-dap setup loads `.nvim/dap.lua`, which reads CodeLLDB
-configurations from `.vscode/launch.json`.
+If Neovim is already open, use `:cd projects/4-shapes` before pressing F5.
 
-Open a source file inside the project you want to debug, add a breakpoint with
-your nvim-dap mapping, and press `F5`. The workspace bridge:
+A typical shared-launch session is:
 
-1. Finds the nearest CMake project.
-2. Configures its Debug preset.
-3. Reads executable targets from the CMake File API.
-4. Prompts for a target.
-5. Builds and launches it with codelldb.
+1. Toggle a breakpoint with `<leader>daptb`.
+2. Press `<F5>` and select `CMake: Build and Debug`.
+3. Inspect locals, stack frames, and watches when execution pauses.
+4. Press `<F5>` again to continue.
 
-Unlike VS Code, Neovim infers the active project from the current source file.
-If the wrong project is selected, first open a source file from the intended
-project.
+For the native CMakeTools path, use `:CMakeDebug` after selecting the project
+and launch target.
 
-For projects with multiple executable targets, Neovim asks which one to build
-on every new debug session. No hardcoded target path is required.
-
-Useful checks:
-
-```vim
-:LspInfo
-:LspRestart
-:DapNew
-```
-
-If `F5` only shows the global “Launch file” prompt, confirm that Neovim was
-opened at the repository root and that the repository-local `.nvim/dap.lua`
-was loaded by your dotfiles.
-
-The repository-local bridge does not modify the external Neovim dotfiles.
+Use `:OverseerToggle` or `<leader>tt` to inspect task output. Useful diagnostic
+commands are `:LspInfo`, `:LspRestart`, `:DapNew`, and `:messages`.
 
 ## Suggested learning workflow
 
@@ -720,7 +703,7 @@ Then reload VS Code and select the new active CMake folder.
 ### The debugger starts the wrong program
 
 - VS Code: select the active folder and debug target again.
-- Neovim: open a source file in the intended project before pressing `F5`.
+- Neovim: run `:cd projects/<project>` before pressing F5.
 
 ### Linker error about multiple definitions of `main`
 
@@ -730,7 +713,7 @@ target. Split those source files into separate CMake targets.
 ### Assets cannot be found
 
 Confirm that `assets/` exists in the active project and that the project is the
-selected VS Code folder or nearest Neovim project. If running directly from the
+selected VS Code folder or current Neovim project. If running directly from the
 binary output directory, add the post-build asset copy command shown above.
 
 ### First configuration fails to download SFML

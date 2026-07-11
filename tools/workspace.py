@@ -16,6 +16,20 @@ PROJECTS_ROOT = ROOT / "projects"
 TEMPLATE = ROOT / ".templates" / "sfml-project"
 VSCODE_SETTINGS = ROOT / ".vscode" / "settings.json"
 IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+EXECUTABLE_PATTERN = re.compile(
+    r"\badd_executable\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)",
+    re.MULTILINE,
+)
+ASSETS_POST_BUILD_TEMPLATE = """add_custom_command(
+  TARGET __TARGET_NAME__
+  POST_BUILD
+  COMMAND
+    "${CMAKE_COMMAND}" -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    "$<TARGET_FILE_DIR:__TARGET_NAME__>/assets"
+  COMMENT "Copying game assets"
+)
+"""
 
 
 def discover_projects() -> list[Path]:
@@ -56,8 +70,38 @@ def write_json(path: Path, value: dict) -> None:
     )
 
 
+def project_target(project: Path) -> str:
+    cmake_lists = project / "CMakeLists.txt"
+    match = EXECUTABLE_PATTERN.search(cmake_lists.read_text(encoding="utf-8"))
+    if not match:
+        raise SystemExit(
+            f"{cmake_lists}: could not find a literal add_executable target"
+        )
+    return match.group(1)
+
+
+def ensure_project_vscode(project: Path) -> None:
+    template_dir = TEMPLATE / ".vscode"
+    destination_dir = project / ".vscode"
+    target_name = project_target(project)
+
+    for template_path in sorted(template_dir.glob("*.json")):
+        destination_path = destination_dir / template_path.name
+        if destination_path.exists():
+            continue
+
+        text = template_path.read_text(encoding="utf-8")
+        text = text.replace("__TARGET_NAME__", target_name)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        destination_path.write_text(text, encoding="utf-8")
+        print(f"Created {destination_path.relative_to(ROOT)}")
+
+
 def sync_vscode() -> list[Path]:
     projects = discover_projects()
+    for project in projects:
+        ensure_project_vscode(project)
+
     settings = load_json(VSCODE_SETTINGS)
     settings["cmake.sourceDirectory"] = [
         f"${{workspaceFolder}}/projects/{project.name}" for project in projects
@@ -108,7 +152,13 @@ def validate_identifier(label: str, value: str) -> str:
     return value
 
 
-def render_template(destination: Path, project_name: str, target_name: str) -> None:
+def render_template(
+    destination: Path,
+    project_name: str,
+    target_name: str,
+    *,
+    with_assets_dir: bool = False,
+) -> None:
     shutil.copytree(TEMPLATE, destination)
     replacements = {
         "__PROJECT_NAME__": project_name,
@@ -122,6 +172,21 @@ def render_template(destination: Path, project_name: str, target_name: str) -> N
         for old, new in replacements.items():
             text = text.replace(old, new)
         path.write_text(text, encoding="utf-8")
+
+    if with_assets_dir:
+        assets_directory = destination / "assets"
+        assets_directory.mkdir()
+        (assets_directory / ".gitkeep").touch()
+
+        cmake_lists = destination / "CMakeLists.txt"
+        cmake_text = cmake_lists.read_text(encoding="utf-8")
+        assets_command = ASSETS_POST_BUILD_TEMPLATE.replace(
+            "__TARGET_NAME__", target_name
+        )
+        cmake_lists.write_text(
+            cmake_text.rstrip() + "\n\n" + assets_command,
+            encoding="utf-8",
+        )
 
 
 def create_project(args: argparse.Namespace) -> None:
@@ -142,7 +207,12 @@ def create_project(args: argparse.Namespace) -> None:
         raise SystemExit(f"Project template is missing: {TEMPLATE}")
 
     try:
-        render_template(destination, project_name, target_name)
+        render_template(
+            destination,
+            project_name,
+            target_name,
+            with_assets_dir=args.with_assets_dir,
+        )
     except Exception:
         if destination.exists():
             shutil.rmtree(destination)
@@ -154,6 +224,12 @@ def create_project(args: argparse.Namespace) -> None:
         f"Configure with: cd projects/{directory_name} "
         "&& cmake --preset debug --fresh"
     )
+    print("Build with: cmake --build --preset debug --parallel")
+    print(
+        "VS Code and Neovim debug tasks were created in the project .vscode directory"
+    )
+    if args.with_assets_dir:
+        print("Runtime assets directory created at assets/")
 
 
 def select_cleanup_projects(projects: list[Path]) -> list[Path]:
@@ -234,6 +310,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     new_parser.add_argument("--name", help="CMake project identifier")
     new_parser.add_argument("--target", help="executable target identifier")
+    new_parser.add_argument(
+        "--with-assets-dir",
+        action="store_true",
+        help="create assets/ and copy it beside the executable after builds",
+    )
     new_parser.set_defaults(handler=create_project)
 
     sync_parser = subparsers.add_parser(

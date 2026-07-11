@@ -1,6 +1,11 @@
 {
   "cmake.sourceDirectory": [
-    "${workspaceFolder}/projects/0-starter"
+    "${workspaceFolder}/projects/0-starter",
+    "${workspaceFolder}/projects/1-window",
+    "${workspaceFolder}/projects/2-events",
+    "${workspaceFolder}/projects/3-application",
+    "${workspaceFolder}/projects/4-shapes",
+    "${workspaceFolder}/projects/5-textures"
   ],
   "cmake.useCMakePresets": "always",
   "cmake.configureOnOpen": false,
