@@ -5,7 +5,10 @@
     "${workspaceFolder}/projects/2-events",
     "${workspaceFolder}/projects/3-application",
     "${workspaceFolder}/projects/4-shapes",
-    "${workspaceFolder}/projects/5-textures"
+    "${workspaceFolder}/projects/5-textures",
+    "${workspaceFolder}/projects/6-inputs",
+    "${workspaceFolder}/projects/7-transformations",
+    "${workspaceFolder}/projects/8-time"
   ],
   "cmake.useCMakePresets": "always",
   "cmake.configureOnOpen": false,
