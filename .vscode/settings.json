@@ -8,7 +8,8 @@
     "${workspaceFolder}/projects/5-textures",
     "${workspaceFolder}/projects/6-inputs",
     "${workspaceFolder}/projects/7-transformations",
-    "${workspaceFolder}/projects/8-time"
+    "${workspaceFolder}/projects/8-time",
+    "${workspaceFolder}/projects/9-bounce-game"
   ],
   "cmake.useCMakePresets": "always",
   "cmake.configureOnOpen": false,
