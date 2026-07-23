@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CMake: Build and Debug",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/ArcadeEngine",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "stopOnEntry": false,
+      "terminal": "integrated",
+      "preLaunchTask": "CMake: Prepare Debug",
+      "windows": {
+        "program": "${workspaceFolder}\\build\\debug\\bin\\ArcadeEngine.exe"
+      }
+    },
+    {
+      "name": "CMake: Debug Existing",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/ArcadeEngine",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "stopOnEntry": false,
+      "terminal": "integrated",
+      "windows": {
+        "program": "${workspaceFolder}\\build\\debug\\bin\\ArcadeEngine.exe"
+      }
+    }
+  ]
+}

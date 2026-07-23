@@ -2,6 +2,7 @@
   "cmake.sourceDirectory": [
     "${workspaceFolder}/projects/0-starter",
     "${workspaceFolder}/projects/1-window",
+    "${workspaceFolder}/projects/10-arcade-engine",
     "${workspaceFolder}/projects/2-events",
     "${workspaceFolder}/projects/3-application",
     "${workspaceFolder}/projects/4-shapes",
