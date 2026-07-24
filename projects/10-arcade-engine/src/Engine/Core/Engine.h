@@ -1,10 +1,12 @@
 #include <SFML/Graphics.hpp>
 
+#include "EngineContext.h"
 #include "EngineVisitor.h"
 
 class Engine {
 private:
   sf::RenderWindow window_;
+  EngineContext context_;
 
 public:
   Engine();
@@ -21,4 +23,5 @@ private:
   void HandleEvent(const auto&);
 
   void EventWindowClose();
+  void EventWindowResized(const sf::Event::Resized&);
 };

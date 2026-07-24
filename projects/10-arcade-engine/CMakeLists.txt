@@ -7,6 +7,8 @@ configure_dev_environment()
 include(FetchContent)
 set(SFML_BUILD_AUDIO ON CACHE BOOL "Build SFML Audio" FORCE)
 set(SFML_BUILD_NETWORK OFF CACHE BOOL "Build SFML Network" FORCE)
+set(SPDLOG_USE_STD_FORMAT ON)
+
 FetchContent_Declare(
   SFML
   GIT_REPOSITORY https://github.com/SFML/SFML.git
@@ -19,7 +21,13 @@ FetchContent_Declare(
   GIT_TAG v3.12.0
   GIT_SHALLOW ON
 )
-FetchContent_MakeAvailable(SFML JSON)
+FetchContent_Declare(
+  LOGS
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.16.0
+  GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable(SFML JSON LOGS)
 
 file(
   GLOB_RECURSE PROJECT_SOURCES
@@ -30,6 +38,7 @@ file(
 )
 
 add_executable(ArcadeEngine ${PROJECT_SOURCES})
+target_include_directories(ArcadeEngine PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(
   ArcadeEngine
   PRIVATE
@@ -38,6 +47,7 @@ target_link_libraries(
     SFML::System
     SFML::Audio
     nlohmann_json::nlohmann_json
+    spdlog::spdlog
 )
 target_compile_features(ArcadeEngine PRIVATE cxx_std_20)
 enable_project_warnings(ArcadeEngine)
